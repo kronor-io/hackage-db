@@ -20,6 +20,7 @@ import Control.Monad.Catch
 import Data.ByteString as BSS
 import Data.ByteString.Lazy as BSL
 import Data.ByteString.UTF8 as BSS
+import Data.List.NonEmpty
 import Data.Map as Map
 import Data.Maybe
 import Data.Time.Clock
@@ -34,7 +35,7 @@ type HackageDB = Map PackageName PackageData
 
 type PackageData = Map Version VersionData
 
-data VersionData = VersionData { cabalFile :: !GenericPackageDescription
+data VersionData = VersionData { cabalFileRevisions :: NonEmpty GenericPackageDescription
                                , tarballHashes :: !(Map String String)
                                }
   deriving (Show, Eq, Generic)
@@ -58,12 +59,12 @@ parsePackageData pn (U.PackageData pv vs') =
                       | otherwise  = parseText "preferred version range" (toString pv)
 
 parseVersionData :: PackageName -> Version -> U.VersionData -> VersionData
-parseVersionData pn v (U.VersionData cf m) =
+parseVersionData pn v (U.VersionData cfs m) =
    mapException (\e -> HackageDBPackageVersion v (e :: SomeException)) $
      VersionData gpd (parseMetaData pn v m)
   where
     gpd = fromMaybe (throw (InvalidCabalFile (show (pn,v)))) $
-            parseGenericPackageDescriptionMaybe cf
+            nonEmpty =<< traverse parseGenericPackageDescriptionMaybe cfs
 
 parseMetaData :: PackageName -> Version -> BSS.ByteString -> Map String String
 parseMetaData pn v buf | BSS.null buf = Map.empty
