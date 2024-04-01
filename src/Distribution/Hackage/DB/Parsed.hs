@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TupleSections, DeriveGeneric #-}
 
 {- |
    Maintainer:  simons@cryp.to
@@ -17,6 +17,7 @@ import Codec.Archive.Tar
 import Codec.Archive.Tar.Entry
 import Control.Exception
 import Control.Monad.Catch
+import Data.Bifunctor (bimap)
 import Data.ByteString as BSS
 import Data.ByteString.Lazy as BSL
 import Data.ByteString.UTF8 as BSS
@@ -35,7 +36,7 @@ type HackageDB = Map PackageName PackageData
 
 type PackageData = Map Version VersionData
 
-data VersionData = VersionData { cabalFileRevisions :: NonEmpty GenericPackageDescription
+data VersionData = VersionData { cabalFileRevisions :: NonEmpty (EpochTime, GenericPackageDescription)
                                , tarballHashes :: !(Map String String)
                                }
   deriving (Show, Eq, Generic)
@@ -66,7 +67,7 @@ parseVersionData pn v (U.VersionData cfs m) =
      VersionData gpd (parseMetaData pn v m)
   where
     gpd = fromMaybe (throw (InvalidCabalFile (show (pn,v)))) $
-            nonEmpty =<< traverse parseGenericPackageDescriptionMaybe cfs
+            nonEmpty =<< traverse (\(a, b) -> Just . (a,) =<< parseGenericPackageDescriptionMaybe b) cfs
 
 parseMetaData :: PackageName -> Version -> BSS.ByteString -> Map String String
 parseMetaData pn v buf | BSS.null buf = Map.empty

@@ -37,7 +37,7 @@ data PackageData = PackageData { preferredVersions :: !ByteString
                                }
   deriving (Show, Eq, Generic)
 
-data VersionData = VersionData { cabalFileRevisions :: ![ByteString]
+data VersionData = VersionData { cabalFileRevisions :: ![(EpochTime, ByteString)]
                                , metaFile           :: !ByteString
                                }
   deriving (Show, Eq, Generic)
@@ -54,10 +54,10 @@ builder = Builder
                                                  f _ old = old { preferredVersions = preferredVersions new }
                                              in pure . Map.insertWith f pn new
 
-  , insertCabalFile         = \pn v _ buf -> let f Nothing   = PackageData mempty (Map.singleton v new)
-                                                 f (Just pd) = pd { versions = Map.insertWith g v new (versions pd) }
-                                                 new         = VersionData [toStrict buf] mempty
-                                                 g _ old     = old { cabalFileRevisions = cabalFileRevisions old <> cabalFileRevisions new }
+  , insertCabalFile         = \pn v et buf -> let f Nothing   = PackageData mempty (Map.singleton v new)
+                                                  f (Just pd) = pd { versions = Map.insertWith g v new (versions pd) }
+                                                  new         = VersionData [(et, toStrict buf)] mempty
+                                                  g _ old     = old { cabalFileRevisions = cabalFileRevisions old <> cabalFileRevisions new }
                                              in pure . Map.alter (Just . f) pn
 
   , insertMetaFile          = \pn v _ buf -> let f Nothing   = PackageData mempty (Map.singleton v new)
